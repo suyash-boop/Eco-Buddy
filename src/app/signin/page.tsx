@@ -1,96 +1,68 @@
-"use client"; // Required for useState, useEffect, and event handlers
+"use client";
 
-import Link from 'next/link';
-import Image from 'next/image'; // Assuming you might want your logo
-import React, { useState } from 'react'; // Import useState
-import { useRouter } from 'next/navigation'; // Import useRouter for redirection
-import { supabase } from '@/lib/supabaseClient'; // Import your Supabase client
+import Link from "next/link";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/utils/supabase/client";
 
 export default function SignInPage() {
-  // ADD THIS LOG: See if the component function body is entered
-  console.log("SignInPage component rendering...");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const router = useRouter(); // Hook for navigation
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null); // State for error messages
-  const [loading, setLoading] = useState(false); // State for loading indicator
+  // Only redirect on mount if the session exists, and log for debugging
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Session on signin page:", session);
+      if (session) router.replace("/");
+    });
+  }, [router]);
 
-  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
-    // ADD THIS LINE: Log immediately upon entry
-    console.log("handleSignIn function entered!");
-    event.preventDefault();
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      console.log("Attempting Supabase sign in with:", email); // Log email being used
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      // Log the immediate result from Supabase
-      console.log("Supabase signInWithPassword result:", { signInData, signInError });
+      if (signInError) throw signInError;
 
-      if (signInError) {
-        console.error("Supabase sign in error object:", signInError);
-        throw signInError; // Throw error to be caught below
-      }
-
-      // Check if user/session data exists in the response
-      if (!signInData.session || !signInData.user) {
-         console.error("Sign in successful according to Supabase, but session or user data is missing in the response!");
-         throw new Error("Authentication succeeded but session data is missing.");
-      }
-
-      // Explicitly check client-side session *after* successful sign in
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      console.log("Client-side session check immediately after sign in:", currentSession);
-
-      if (!currentSession) {
-          console.error("Client-side session is STILL null immediately after successful sign in!");
-          // Don't redirect if the session isn't confirmed client-side
-          throw new Error("Client-side session not established after sign-in.");
-      }
-
-      console.log("Sign in successful, session confirmed client-side, attempting full page redirect.");
-
-      // Use window.location.assign for a full page navigation
-      window.location.assign('/'); // Redirect to the root path
-
+      // Redirect after successful sign in
+      router.replace("/");
     } catch (err: any) {
-      console.error("Error during sign in process:", err);
-      // Use err.message which might come from Supabase or our custom errors
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
-      setLoading(false); // Ensure loading is reset on any error
+      setError(err.message || "Failed to sign in. Please check your credentials.");
+      setLoading(false);
     }
-    // No finally block needed if redirect happens
   };
 
+  const Spinner = () => (
+    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+      <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      </svg>
+    </span>
+  );
+
   return (
-    // Removed the outer full-screen div.
-    // Added a container to center the form within the main layout area.
     <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* Reverted background to white, kept dark mode variant */}
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white dark:bg-gray-800 p-8 shadow-lg">
-        {/* Optional: Logo */}
         <div className="flex justify-center">
-           {/* ... logo/title ... */}
-           <h1 className="text-3xl font-bold text-green-600 dark:text-green-400">EcoBuddy</h1>
+          <h1 className="text-3xl font-bold text-green-600 dark:text-green-400">EcoBuddy</h1>
         </div>
 
-        {/* Reverted text color to default (dark text on light bg) */}
         <h2 className="mt-6 text-center text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
           Sign in to your account
         </h2>
 
-        {/* Updated form to use onSubmit */}
         <form className="mt-8 space-y-6" onSubmit={handleSignIn}>
-          {/* Removed action and method attributes */}
-          {/* Keep hidden field for CSRF protection if needed later */}
-          <input type="hidden" name="remember" defaultValue="true" />
-          {/* Display error message if present */}
           {error && (
             <div className="rounded-md bg-red-50 p-4 border border-red-200">
               <p className="text-sm font-medium text-red-800">{error}</p>
@@ -98,88 +70,77 @@ export default function SignInPage() {
           )}
 
           <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              {/* Updated input to be controlled */}
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email} // Bind value to state
-                onChange={(e) => setEmail(e.target.value)} // Update state on change
-                disabled={loading} // Disable input when loading
-                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-green-500 focus:outline-none focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 sm:text-sm"
-                placeholder="Email address"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              {/* Updated input to be controlled */}
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password} // Bind value to state
-                onChange={(e) => setPassword(e.target.value)} // Update state on change
-                disabled={loading} // Disable input when loading
-                className="relative block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-green-500 focus:outline-none focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 sm:text-sm"
-                placeholder="Password"
-              />
-            </div>
+            <input
+              id="email-address"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-green-500 focus:outline-none focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 sm:text-sm"
+              placeholder="Email address"
+            />
+
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-green-500 focus:outline-none focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 sm:text-sm"
+              placeholder="Password"
+            />
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <label className="flex items-center text-sm text-gray-900 dark:text-gray-300">
               <input
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                // Reverted checkbox styles to original
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-green-600 dark:focus:ring-offset-gray-800"
               />
-              {/* Reverted label text color to original */}
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                Remember me
-              </label>
-            </div>
+              <span className="ml-2">Remember me</span>
+            </label>
 
-            <div className="text-sm">
-              {/* Reverted link color to original */}
-              <Link href="#" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
-                Forgot your password?
-              </Link>
-            </div>
-          </div>
-
-          <div>
-            {/* Updated button to handle loading state AND ADD onClick */}
-            <button
-              type="submit"
-              disabled={loading} // Disable button when loading
-              // ADD THIS onClick HANDLER FOR DEBUGGING
-              onClick={() => console.log("Sign in BUTTON clicked!")}
-              className={`group relative flex w-full justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                loading ? 'opacity-50 cursor-not-allowed' : '' // Style for loading state
-              }`}
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
             >
-              {loading ? 'Signing In...' : 'Sign in'} {/* Change text when loading */}
-            </button>
+              Forgot your password?
+            </Link>
           </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className={`group relative flex w-full justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${loading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+          >
+            {loading ? (
+              <>
+                <Spinner />
+                Signing In...
+              </>
+            ) : (
+              "Sign in"
+            )}
+          </button>
         </form>
 
-        {/* Reverted text color to original */}
         <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          Or{' '}
-          {/* Reverted link color to original */}
-          <Link href="/signup" className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300">
+          Or{" "}
+          <Link
+            href="/signup"
+            className="font-medium text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
+          >
             create an account
           </Link>
         </p>
