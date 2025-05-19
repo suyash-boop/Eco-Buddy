@@ -1,7 +1,7 @@
 "use client"; // This context needs to be client-side
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { supabase } from '@/lib/supabaseClient'; // Adjust path if needed
+import { supabase } from '@/lib/supabaseClient';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
@@ -12,12 +12,11 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-// Provide default values matching the interface structure
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
-  loading: true, // Start in loading state
-  signOut: async () => {}, // Default empty async function
+  loading: true,
+  signOut: async () => {},
 });
 
 interface AuthProviderProps {
@@ -42,24 +41,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
       }
-      setLoading(false); // Initial load complete
+      setLoading(false);
     };
 
     fetchSession();
 
-    // Listen for auth state changes (sign in, sign out, token refresh)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        console.log("Auth state changed:", _event, newSession);
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        setLoading(false); // Update loading state on changes too
+        setLoading(false);
       }
     );
 
-    // Cleanup listener on component unmount
     return () => {
-      authListener?.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -69,15 +66,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (error) {
       console.error("Error signing out:", error);
     } else {
-      // State updates handled by onAuthStateChange listener
-      // Optionally redirect after sign out
-      router.push('/signin'); // Redirect to sign-in page after logout
-      router.refresh(); // Ensure state is refreshed across server/client components
+      router.push('/signin');
+      // router.refresh(); // Not needed in client components
     }
     setLoading(false);
   };
 
-  const value = {
+  const value: AuthContextType = {
     session,
     user,
     loading,
@@ -87,11 +82,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use the AuthContext
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };
