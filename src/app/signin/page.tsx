@@ -2,42 +2,61 @@
 
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Only redirect on mount if the session exists, and log for debugging
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Session on signin page:", session);
-      if (session) router.replace("/");
-    });
-  }, [router]);
+  // Get redirect URL from query params
+  const redirectedFrom = searchParams.get("redirectedFrom");
 
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log("User already signed in, redirecting...");
+          router.replace(redirectedFrom || "/");
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+      }
+    };
+
+    checkAuth();
+  }, [router, redirectedFrom]);
+
+  // Handle form submission
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) throw signInError;
 
+      console.log("Sign in successful:", data);
+      
       // Redirect after successful sign in
-      router.replace("/");
+      const redirectUrl = redirectedFrom || "/";
+      router.replace(redirectUrl);
+      
     } catch (err: any) {
       setError(err.message || "Failed to sign in. Please check your credentials.");
+    } finally {
       setLoading(false);
     }
   };
@@ -61,6 +80,12 @@ export default function SignInPage() {
         <h2 className="mt-6 text-center text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
           Sign in to your account
         </h2>
+
+        {redirectedFrom && (
+          <div className="rounded-md bg-blue-50 p-4 border border-blue-200">
+            <p className="text-sm text-blue-800">Please sign in to access that page.</p>
+          </div>
+        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSignIn}>
           {error && (
