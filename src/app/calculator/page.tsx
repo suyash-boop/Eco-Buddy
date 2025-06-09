@@ -278,7 +278,7 @@ export default function CarbonCalculator() {
     return { level: "Very High", color: "text-red-500" };
   };
 
-f  // Simplified and more robust validation
+ // Simplified and more robust validation
   const isInputValid = (value: string) => {
     // Convert to string and trim whitespace
     const trimmedValue = String(value).trim();
