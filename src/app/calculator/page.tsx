@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useCalculator } from "@/context/CalculatorContext";
 import type { Answer } from "@/context/CalculatorContext";
@@ -130,9 +130,10 @@ export default function CarbonCalculator() {
     setAnswers,
     showResults,
     setShowResults,
-    inputValue,
-    setInputValue,
   } = useCalculator();
+
+  // Use local state for input value instead of context
+  const [localInputValue, setLocalInputValue] = useState("");
 
   // Add this safety check to ensure currentQuestionIndex is valid
   useEffect(() => {
@@ -141,13 +142,22 @@ export default function CarbonCalculator() {
     }
   }, [currentQuestionIndex, setCurrentQuestionIndex]);
 
+  // Reset input when question changes
+  useEffect(() => {
+    const currentQuestion = questions[currentQuestionIndex];
+    if (currentQuestion) {
+      const existingAnswer = answers.find(a => a.questionId === currentQuestion.id);
+      setLocalInputValue(existingAnswer ? String(existingAnswer.value) : "");
+    }
+  }, [currentQuestionIndex, answers]);
+
   // Get the current question safely
   const currentQuestion = questions[currentQuestionIndex] || questions[0];
 
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setInputValue("");
+      setLocalInputValue("");
     } else {
       setShowResults(true);
     }
@@ -160,7 +170,7 @@ export default function CarbonCalculator() {
       const prevAnswer = answers.find(
         (a) => a.questionId === questions[prevIndex].id
       );
-      setInputValue(prevAnswer ? String(prevAnswer.value) : "");
+      setLocalInputValue(prevAnswer ? String(prevAnswer.value) : "");
     }
   };
 
@@ -268,17 +278,34 @@ export default function CarbonCalculator() {
     return { level: "Very High", color: "text-red-500" };
   };
 
+f  // Simplified and more robust validation
+  const isInputValid = (value: string) => {
+    // Convert to string and trim whitespace
+    const trimmedValue = String(value).trim();
+    
+    // Check if empty
+    if (trimmedValue === "" || trimmedValue === null || trimmedValue === undefined) {
+      return false;
+    }
+    
+    // Convert to number
+    const numValue = parseFloat(trimmedValue);
+    
+    // Check if it's a valid number and not negative
+    return !isNaN(numValue) && isFinite(numValue) && numValue >= 0;
+  };
+
   const renderQuestion = () => {
     const question = questions[currentQuestionIndex];
 
     if (question.type === "singleChoice") {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          {question.options?.map((option) => (
+          {question.options?.map((option) =f> (
             <button
               key={option.value}
               onClick={() => handleAnswer(option.value)}
-              className="flex items-center p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all border-2 border-transparent hover:border-green-500"
+              className="flex items-center p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all border-2 border-transparent hover:border-green-500 text-gray-900 dark:text-white"
             >
               <span className="text-2xl mr-3">{option.icon}</span>
               <span>{option.label}</span>
@@ -289,29 +316,82 @@ export default function CarbonCalculator() {
     }
 
     if (question.type === "number") {
+      // Check validation state
+      const inputIsValid = isInputValid(localInputValue);
+      
       return (
         <div className="mt-6">
           <div className="flex items-center">
             <input
               type="number"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className="w-full p-3 bg-white dark:bg-gray-700 rounded-lg shadow-md border-2 border-transparent focus:border-green-500 focus:outline-none"
+              value={localInputValue}
+              onChange={(e) => {
+                console.log('Input changed:', e.target.value);
+                setLocalInputValue(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const isValid = isInputValid(localInputValue);
+                  console.log('Enter pressed - Valid:', isValid, 'Value:', localInputValue);
+                  if (isValid) {
+                    handleAnswer(parseFloat(localInputValue));
+                  }
+                }
+              }}
+              className="w-full p-3 bg-white dark:bg-gray-700 rounded-lg shadow-md border-2 border-transparent focus:border-green-500 focus:outline-none text-gray-900 dark:text-white"
               placeholder={`Enter value in ${question.unit || "units"}`}
+              min="0"
+              step="any"
             />
             {question.unit && (
-              <span className="ml-2 text-gray-500 dark:text-gray-300">
+              <span className="ml-2 text-gray-500 dark:text-gray-300 font-medium">
                 {question.unit}
               </span>
             )}
           </div>
+          
           <button
-            onClick={() => handleAnswer(Number(inputValue))}
-            disabled={!inputValue}
-            className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 hover:bg-green-700 transition-colors"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              console.log('Submit button clicked');
+              console.log('Current value:', localInputValue);
+              console.log('Is valid:', inputIsValid);
+              
+              if (inputIsValid) {
+                const numValue = parseFloat(localInputValue);
+                console.log('Submitting value:', numValue);
+                handleAnswer(numValue);
+              } else {
+                console.log('Validation failed');
+              }
+            }}
+            disabled={!inputIsValid}
+            className={`mt-4 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+              inputIsValid
+                ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
             Submit
           </button>
+          
+          {/* Enhanced debug info */}
+          <div className="mt-2 text-xs space-y-1">
+            <div className="text-gray-600">
+              Raw Input: "{localInputValue}"
+            </div>
+            <div className="text-gray-600">
+              Trimmed: "{String(localInputValue).trim()}"
+            </div>
+            <div className="text-gray-600">
+              Parsed Number: {isNaN(parseFloat(localInputValue)) ? 'Invalid' : parseFloat(localInputValue)}
+            </div>
+            <div className={inputIsValid ? 'text-green-600' : 'text-red-600'}>
+              Validation: {inputIsValid ? 'PASS' : 'FAIL'}
+            </div>
+          </div>
         </div>
       );
     }
@@ -323,19 +403,18 @@ export default function CarbonCalculator() {
             type="range"
             min={question.min || 0}
             max={question.max || 100}
-            value={inputValue || 0}
-            onChange={(e) => setInputValue(e.target.value)}
+            value={localInputValue || 0}
+            onChange={(e) => setLocalInputValue(e.target.value)}
             className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
           />
-          <div className="flex justify-between mt-2">
+          <div className="flex justify-between mt-2 text-gray-900 dark:text-white">
             <span>{question.min || 0}</span>
-            <span className="font-bold">{inputValue || 0}</span>
+            <span className="font-bold">{localInputValue || 0}</span>
             <span>{question.max || 100}</span>
           </div>
           <button
-            onClick={() => handleAnswer(Number(inputValue))}
-            disabled={!inputValue}
-            className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 hover:bg-green-700 transition-colors"
+            onClick={() => handleAnswer(Number(localInputValue || 0))}
+            className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             Submit
           </button>
@@ -352,7 +431,7 @@ export default function CarbonCalculator() {
     setCurrentQuestionIndex(0);
     setAnswers([]);
     setShowResults(false);
-    setInputValue("");
+    setLocalInputValue("");
   };
 
   const renderResults = () => {
@@ -365,7 +444,7 @@ export default function CarbonCalculator() {
     ] as const;
     const { level, color } = getEmissionLevel(total);
 
-    // Prepare data for analytics
+    // Save analytics data to localStorage
     const analyticsData = {
       total,
       level,
@@ -375,6 +454,9 @@ export default function CarbonCalculator() {
         percentage: total > 0 ? Math.round((getCategoryEmissions(cat) / total) * 100) : 0
       }))
     };
+
+    // Save to localStorage for analytics page
+    localStorage.setItem('ecobuddy_analytics_data', JSON.stringify(analyticsData));
 
     return (
       <motion.div
@@ -418,12 +500,7 @@ export default function CarbonCalculator() {
         {/* View Detailed Analytics button */}
         <div className="mt-8 text-center flex flex-col sm:flex-row justify-center gap-4">
           <button
-            onClick={() => {
-              // Encode the data as URL parameters
-              const params = new URLSearchParams();
-              params.set('data', JSON.stringify(analyticsData));
-              router.push(`/analytics?${params.toString()}`);
-            }}
+            onClick={() => router.push('/analytics')}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
           >
             View Detailed Analytics

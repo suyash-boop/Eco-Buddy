@@ -1,47 +1,36 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
-import { AuthProvider } from "@/context/AuthContext";
-import { ChatProvider } from "@/context/ChatContext";
-import { CalculatorProvider } from "@/context/CalculatorContext";
-import { createClient } from "@/utils/supabase/server";
 
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "EcoBuddy",
-  description: "Your partner in sustainability",
+  title: "EcoBuddy - Carbon Footprint Tracker",
+  description: "Track and reduce your carbon footprint with EcoBuddy",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
-  const supabase = await createClient();
-  // No longer passing session to AuthProvider
-  // But you can still fetch session here if you want for other uses
-
+}>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <ChatProvider>
-            <CalculatorProvider>
-              <div>
-                <Sidebar />
-                <div className="ml-64 flex flex-col h-screen overflow-hidden">
-                  <Navbar />
-                  <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
-                    {children}
-                  </main>
-                </div>
-              </div>
-            </CalculatorProvider>
-          </ChatProvider>
-        </AuthProvider>
+      <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
+        <div className="flex">
+          <Sidebar />
+          {/* Main content area - full width on mobile, offset on desktop */}
+          <main className="flex-1 w-full md:w-auto">{children}</main>
+        </div>
       </body>
     </html>
   );
