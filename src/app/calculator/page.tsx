@@ -278,7 +278,7 @@ export default function CarbonCalculator() {
     return { level: "Very High", color: "text-red-500" };
   };
 
- // Simplified and more robust validation
+  // Simplified and more robust validation
   const isInputValid = (value: string) => {
     // Convert to string and trim whitespace
     const trimmedValue = String(value).trim();
@@ -301,7 +301,7 @@ export default function CarbonCalculator() {
     if (question.type === "singleChoice") {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          {question.options?.map((option) =f> (
+          {question.options?.map((option) => (
             <button
               key={option.value}
               onClick={() => handleAnswer(option.value)}
