@@ -89,5 +89,5 @@ It helps others discover the project!
 
 ---
 
-> _“Inspired by creativity. Driven by code. Powered by teamwork.”_
+> _“Inspired by creativity. Driven by code. Powered by teamwork”_
 
