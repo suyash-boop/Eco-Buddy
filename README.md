@@ -78,7 +78,7 @@ Check out our [Team Portfolio](https://wizard3-o.vercel.app/home)
 ## 🤝 Contributions
 
 We welcome contributions from the community!  
-Feel free to fork this repo, open an issue, or submit a pull request to improve the platform.
+Feel free to fork this repo, open an issue, or submit a pull request to improve the platform..
 
 ---
 
